@@ -46,7 +46,6 @@ var getSubdomainsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("assetfinder error: %v", err)
 		}
-		fmt.Println("assetfinder output:")
 		assetfinderSubdomains := strings.TrimSpace(string(assetfinderOutput))
 		fmt.Println(assetfinderSubdomains)
 
