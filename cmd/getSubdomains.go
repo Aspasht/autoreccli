@@ -146,8 +146,6 @@ var getSubdomainsCmd = &cobra.Command{
 			finalSubdomains = append(finalSubdomains, subdomain)
 		}
 
-		// Print subdomains to stdout
-		fmt.Println("Subdomains:")
 		for _, subdomain := range finalSubdomains {
 			fmt.Println(subdomain)
 		}
