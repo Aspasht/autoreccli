@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/spf13/cobra"
 )
@@ -33,29 +32,28 @@ var getUrlsCmd = &cobra.Command{
 			return fmt.Errorf("error: %w", err)
 		}
 
-		// Create a pipe for connecting the commands
-		pipeReader, pipeWriter := io.Pipe()
-
 		// Create a command to run cat
 		catCmd := exec.Command("cat")
+
+		// Connect the input of catCmd to the subdomain data
 		catCmd.Stdin = bytes.NewReader(data)
-		catCmd.Stdout = pipeWriter
 
 		// Create a command to run waybackurls
 		waybackCmd := exec.Command("waybackurls")
-		waybackCmd.Stdin = pipeReader
 
 		// Create a command to run gau
 		gauCmd := exec.Command("gau")
+
+		// Create a pipe for connecting the output of catCmd to the inputs of waybackCmd and gauCmd
+		pipeReader, pipeWriter := io.Pipe()
+		catCmd.Stdout = pipeWriter
+		waybackCmd.Stdin = pipeReader
 		gauCmd.Stdin = pipeReader
 
-		// Capture the output of gauCmd
+		// Capture the output of waybackCmd and gauCmd
 		var output bytes.Buffer
+		waybackCmd.Stdout = &output
 		gauCmd.Stdout = &output
-
-		// Create a WaitGroup to wait for all commands to finish
-		var wg sync.WaitGroup
-		wg.Add(2) // 2 commands: waybackCmd and gauCmd
 
 		// Start the catCmd
 		if err := catCmd.Start(); err != nil {
@@ -63,30 +61,14 @@ var getUrlsCmd = &cobra.Command{
 		}
 
 		// Start the waybackCmd
-		go func() {
-			defer wg.Done()
-			if err := waybackCmd.Start(); err != nil {
-				fmt.Printf("error starting waybackurls command: %v\n", err)
-				return
-			}
-			if err := waybackCmd.Wait(); err != nil {
-				fmt.Printf("error waiting for waybackurls command: %v\n", err)
-				return
-			}
-		}()
+		if err := waybackCmd.Start(); err != nil {
+			return fmt.Errorf("error starting waybackurls command: %w", err)
+		}
 
 		// Start the gauCmd
-		go func() {
-			defer wg.Done()
-			if err := gauCmd.Start(); err != nil {
-				fmt.Printf("error starting gau command: %v\n", err)
-				return
-			}
-			if err := gauCmd.Wait(); err != nil {
-				fmt.Printf("error waiting for gau command: %v\n", err)
-				return
-			}
-		}()
+		if err := gauCmd.Start(); err != nil {
+			return fmt.Errorf("error starting gau command: %w", err)
+		}
 
 		// Wait for the catCmd to finish
 		if err := catCmd.Wait(); err != nil {
@@ -96,10 +78,17 @@ var getUrlsCmd = &cobra.Command{
 		// Close the pipeWriter to signal the end of input
 		pipeWriter.Close()
 
-		// Wait for all commands (waybackCmd and gauCmd) to finish
-		wg.Wait()
+		// Wait for the waybackCmd to finish
+		if err := waybackCmd.Wait(); err != nil {
+			return fmt.Errorf("error waiting for waybackurls command: %w", err)
+		}
 
-		// Process the URLs from the output buffer
+		// Wait for the gauCmd to finish
+		if err := gauCmd.Wait(); err != nil {
+			return fmt.Errorf("error waiting for gau command: %w", err)
+		}
+
+		// Remove duplicate lines from the output and sort the URLs
 		uniqueURLs := make(map[string]struct{})
 		var sortedURLs []string
 		for _, line := range strings.Split(output.String(), "\n") {
