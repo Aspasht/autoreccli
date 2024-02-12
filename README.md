@@ -21,7 +21,7 @@
       ./install.sh
 
   ## Usage
-      <img width="616" alt="autoreccli" src="https://github.com/Aspasht/autoreccli/assets/72987297/2751e38b-65c0-4701-bf04-5b0e61976452">
+  ![image](https://github.com/Aspasht/autoreccli/assets/72987297/2751e38b-65c0-4701-bf04-5b0e61976452)
 
   
   ## Feel Free To Contribute 
